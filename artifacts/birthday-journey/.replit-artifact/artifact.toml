@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Birthday Journey"
+description = "A personal, mobile-friendly interactive birthday scrapbook journey with an opening envelope, 18 clickable gifts, a birthday video, and a final letter. Personal content is left as editable placeholders."
+version = "1.0.0"
+id = "artifacts/birthday-journey"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18672
+
+[services.development]
+run = "pnpm --filter @workspace/birthday-journey run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/birthday-journey", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/birthday-journey/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18672"
+BASE_PATH = "/"

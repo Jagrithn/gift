@@ -1,0 +1,59 @@
+I want you to help me build a cute, romantic, mobile-friendly birthday website for my girlfriend’s 18th birthday. I have already started an HTML file; if I attach it, inspect it first and build on it where practical.
+
+Please make a **first draft** that I can preview and improve. Don’t try to finish every personal detail by inventing it. Use clear placeholders for photos, names, memories, songs, lyrics, video, messages, and the final letter so I can add them later.
+
+## Overall feeling
+
+Make the site feel like a little interactive birthday journey made by me for her. Use a cohesive, dreamy birthday scrapbook style with soft colors, warm lighting, balloons, flowers, and gentle animations. Make it feel polished and immersive, but keep text readable and controls easy to tap on a phone.
+
+Use lightweight 3D-style effects where they add something special, especially for the envelope and main gift box. The other gifts can use attractive page designs and simpler animations. Prioritize a working, easy-to-edit first draft over complex effects that might make the site slow or difficult to update.
+
+## Journey through the website
+
+1. **Opening envelope:** Show an envelope with a placeholder for her name. When she taps it, animate it opening.
+2. **Birthday greeting:** Reveal a placeholder photo of her and the message “Hi, birthday girl! Happy 18th birthday!” Add a short placeholder for a birthday song or recording. Let her control playback.
+3. **Made-by-me message:** Show a short message that the website and gifts were made by me.
+4. **Animated gift box:** Show a wrapped box with balloons and gentle background animation. When she taps the box, animate the lid opening and reveal the clickable gifts.
+5. **Interactive gift collection:** Let her open the gifts in any order. Give each gift a clear title and a short placeholder description. Include a way to return to the gift collection.
+6. **Proceed button:** After she has explored the gifts, let her tap “Proceed” to continue to my birthday video.
+7. **Birthday video:** Show a video player with a placeholder video and normal playback controls.
+8. **Final gift:** After the video, show one final gift or envelope. When opened, reveal my birthday letter, with a placeholder for the letter text and a birthday closing message.
+
+## Gifts to include in the box
+
+Create a clickable item for each of these ideas:
+
+- **Photo shower:** She pulls or taps a string; photos appear one by one, each with its own short message.
+- **Birthday magazine:** A digital magazine with a cover and multiple pages. Use a polished birthday-magazine layout; leave placeholders for photos, headings, and captions.
+- **Bouquet of exactly 18 flowers:** Show 18 different flowers. Let them appear or bloom in sequence. Add an optional message for each flower.
+- **Letter box:** A box containing 18 separate messages that she can open one at a time.
+- **Love jar:** A jar with 18 separate notes that she can open one at a time.
+- **Poem:** A decorated page with a placeholder for a poem written for her.
+- **Two birthday animations:** Make two distinct small animations. Each should reveal “Happy Birthday” with a cake and a flower.
+- **DIY Spotify book:** A digital book with turnable pages. Each page has a song dedication, a placeholder for my chosen lyric line, and a play button or song link placeholder.
+- **3D birthday card:** A card that opens with a layered or 3D-style animation and reveals a message.
+- **A-to-Z birthday book:** Pages for A through Z, each with a placeholder for a birthday wish or loving thought.
+- **Digital scrapbook:** A scrapbook-style collection of photos, captions, and memories.
+- **Birthday poster:** A birthday poster layout with placeholders for her photo, name, and birthday message.
+- **Birthday photo booth:** A playful photo-strip-style page with photo placeholders and decorative frames.
+- **Event calendar or memories book:** A separate calendar or timeline layout for birthday events or shared memories.
+- **Pop-out character card:** A character pops out and reveals a “how much I love you” message in short parts.
+- **Memory map:** A map with tappable placeholder pins; each pin reveals a shared memory and optional photo.
+- **Digital cheesecake:** A cute illustrated or 3D-style cheesecake that opens or animates to reveal a message.
+- **Digital kunafa chocolate:** A cute illustrated or 3D-style kunafa chocolate gift that opens or animates to reveal a message.
+
+Keep the birthday magazine and the event calendar or memories book as separate gifts. Keep the two birthday animations separate. Do not add extra gift concepts beyond the list above.
+
+## Music, motion, and usability
+
+- Background music should start only after she taps a clear play or start control. Include pause, mute, and replay controls.
+- Pause background music while the birthday video plays.
+- Keep animations gentle, short, and skippable.
+- Make the website responsive and usable on phones.
+- Add captions or a text alternative for the birthday video if practical.
+- Use placeholders for personal assets; do not invent photos, personal memories, song choices, or messages.
+- Avoid features that require payment or an account just to view the finished site, if possible.
+
+Before building, ask me only about information you genuinely need to resolve a major ambiguity. If you can proceed safely with placeholders, make the first draft and list what content I should provide next.
+
+At the end, tell me how to preview the first draft and how I can replace the placeholders with my own photos, messages, audio, video, and letter.
