@@ -1,0 +1,18 @@
+## Interaction flow for every gift
+
+Make every control visibly respond to taps and clicks. Each gift should open into its own scene and have an obvious way to return to the gift collection.
+
+- **Birthday card:** Show a closed card. Tapping it swings the cover open; a dimensional cake rises from inside, candles light up, and the birthday wish appears.
+- **18-flower bouquet:** Show all 18 flowers together in wrapped paper. Pulling or tapping one flower animates it out of the bouquet and reveals that flower’s personal message. Let her return to the bouquet and choose another.
+- **A-to-Z book:** Show a centered open book. Previous/next controls turn pages with a page-turn animation, from A through Z. Each page shows its matching editable wish.
+- **18-candle cake:** Show the complete cake with all 18 candles lit. A clear “Blow out candles” control extinguishes them and reveals a birthday wish. Add a separate “Cut the cake” control that animates a slice being cut or lifted. A microphone blow interaction can be optional; the button must always work.
+- **Photo shower:** Show six photos stacked in the scene with the pull string visible. Each pull reveals and unrolls the next photo with its matching message. After the sixth pull, animate the photos away and bring a small final letter into view. Include a replay control.
+- **Letter box:** Show a large closed dispenser. Pressing “Dispense a letter” makes a letter slide out of the slot. Opening it reveals its photo and sweet message. Let her dispense another letter.
+- **Love jar:** Show a closed, transparent jar with 18 paper chits visible inside. Tapping “Open jar” moves the lid and animates the chits tumbling out. Tapping a chit reveals its matching reason for loving her.
+- **Memory calendar:** Show a real month-by-month calendar, starting at October 2025 and ending at October 2026. Month controls navigate between months. Mark only dates configured in the code. Tapping a marked date opens that date’s photo and message.
+- **Memory map:** Show the photos connected by a visible string or route. Tapping a photo or stop highlights it and reveals its story, then lets her follow the next point in order.
+- **Spotify songbook:** Show one song per page with its photo, title, dedication, and chosen lyric excerpt. Page navigation updates all song details together. A play/pause control plays that song’s local audio file; moving to another song stops the previous one.
+- **Magazine, scrapbook, poster, and photo booth:** These are reserved spaces for my own finished designs. Keep each space centered, attractive, and easy to replace with my design. Don’t add upload forms or create the designs.
+- **Pop-out character card:** Start with a closed or resting character card. Each tap makes the character pop out or move and reveals the next short love message. Provide a replay/start-over control.
+
+Use only content and media I provide or clearly marked code placeholders. Do not invent personal photos, dates, memories, lyrics, or messages.

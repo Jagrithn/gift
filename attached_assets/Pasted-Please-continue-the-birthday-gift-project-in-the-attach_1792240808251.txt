@@ -1,0 +1,36 @@
+Please continue the birthday gift project in the attached repository. Inspect the code and current app before making changes. The project is at `artifacts/birthday-journey`; its main implementation is `src/App.tsx`, its gift content is `src/content.ts`, and its styling is `src/index.css`. `artifacts/mockup-sandbox` is a component preview tool and contains a copy of the journey app; do not mistake it for the main app.
+
+The attached text file in `attached_assets` is an older prompt. It describes an earlier version of the plan. Follow the requirements below when they conflict with that older prompt.
+
+## Project context
+
+This is for my girlfriend’s 18th birthday. I have a low budget and am making personal DIY gifts. The look should feel romantic, warm, polished, and mobile-friendly, with gentle, purposeful animations and convincing depth. Use placeholders where I haven’t supplied personal details. Don’t invent our names, photos, dates, shared memories, songs, lyrics, or letter text.
+
+The existing app already has an envelope greeting, a “made by me” note, an animated gift box, a collection screen, gift interactions, a video stage, and a final letter. Preserve those working parts unless a change is necessary for the gift work. My recent request was to work on the individual gifts, not redesign the whole website.
+
+## Current requirements for the gifts
+
+- **Birthday card:** A closed card opens on click. A layered 3D-style cake pops out with “Happy Birthday” and a code-editable wish.
+- **Bouquet:** Exactly 18 different realistic-looking flowers arranged as one wrapped bouquet with ribbon. Do not use emojis as flower artwork. Pulling a flower reveals its own editable message.
+- **A-to-Z book:** A centered, realistic-looking open book with aligned pages. Turn through all 26 letters and show a configurable wish for each.
+- **Birthday cake:** One realistic-looking cake with exactly 18 candles. Add an interaction to blow them out and another to cut the cake.
+- **Photo shower:** Start with six photos stacked together. Each string pull unrolls or reveals the next photo and its corresponding message. After the sixth pull, clear the photos and reveal a small final letter.
+- **Letter box:** A large letter dispenser. Pressing its button animates a letter coming out; the letter contains a photo and a sweet message.
+- **Love jar:** A large glass jar visibly filled with small chits. Opening it animates the chits tumbling or floating out. Let her pick one of 18 editable reasons I love her.
+- **Memory calendar:** Show every month from October 2025 through October 2026. Dates and memories must be configurable; clicking a marked date reveals its photo and message. Do not make up our special dates.
+- **Memory map:** Connect our photos with a visible string or path to tell our story. Clicking a photo reveals its matching message. Make the photo order and content easy to edit.
+- **Spotify songbook:** Give each song its own photo, title, dedication, selected lyric excerpt, and local audio file. Moving to another song updates all of these together and plays only that song’s audio when she presses play. Do not claim it streams from Spotify unless there is an actual Spotify integration.
+- **Reserved spaces:** Leave clean, centered placeholders for my own birthday magazine, scrapbook, poster, and photo booth designs. I’ll make those designs myself.
+- **Pop-out love card:** Keep this separate, with a polished character pop-out and editable messages about how much I love her.
+
+Remove the two generic birthday-animation gifts and the separate digital cheesecake and kunafa gifts. The cake with 18 candles replaces the digital treats.
+
+## Personal assets and controls
+
+Do not add photo, song, or video upload controls to the gift pages. I want to put the files in an `assets` folder and edit clearly marked paths and content in the code. Provide a short guide that tells me exactly where each photo/audio file goes and which arrays or fields to edit. Keep the greeting and video stages only if they fit the existing journey; don’t make extra gift concepts.
+
+## Implementation and handoff
+
+Use the existing theme and components where practical. Make the gift interactions work, keep the layouts responsive, and use reduced-motion preferences where relevant. Inspect the relevant components before editing and keep the project structure maintainable. Don’t replace the existing app with a new unrelated mockup.
+
+When done, explain which files changed, how I can preview the app in Replit, and exactly how I can add my own photos, songs, and messages. Be clear about what you verified and anything that still needs my personal content.

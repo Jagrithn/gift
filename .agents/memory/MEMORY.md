@@ -1,0 +1,1 @@
+- [Birthday redesign scope](birthday-redesign-scope.md) — complete the visual redesign first; revisit gift changes afterward.
