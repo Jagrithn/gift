@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  ArrowLeft, ArrowRight, AudioLines, ChevronLeft, ChevronRight,
-  CirclePlay, Heart, MapPin, Music2, Pause, Play, RotateCcw, Volume2, VolumeX,
+  ArrowLeft, ArrowRight, AudioLines, ChevronLeft, ChevronRight, ExternalLink,
+  CirclePlay, Heart, MapPin, Music2, Pause, Pencil, Play, RotateCcw, Volume2, VolumeX, X,
 } from 'lucide-react';
+import { LocalEditor } from './components/LocalEditor';
 import {
-  personal, media, surprises, bouquetFlowers, flowerMessages, letterNotes,
-  loveReasons, alphabetWishes, photoShowerMoments, songs, calendarEntries,
-  memoryMapStops, reservedDesignAssets, characterLoveParts,
-} from './content';
+  listLocalAssetKeys, loadSettings, saveSettings,
+  type KeepsakeSettings,
+} from './lib/keepsake-settings';
+import { clearLocalAssets, getLocalAsset, pruneLocalAssets, saveLocalAsset } from './lib/local-assets';
 
 type Stage = 'envelope' | 'greeting' | 'note' | 'present' | 'collection' | 'gift' | 'video' | 'final-envelope' | 'letter';
 type OpeningSequence = 'envelope' | 'present' | 'final-envelope' | null;
 
-const assetUrl = (path: string) => path ? `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}` : '';
+const staticAssetUrl = (path: string) => path ? `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}` : '';
+const spotifyTrackUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'open.spotify.com' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+};
 
 function ActionButton({ children, onClick, quiet = false, disabled = false, className = '', 'aria-expanded': ariaExpanded, 'aria-controls': ariaControls }: {
   children: ReactNode; onClick: () => void; quiet?: boolean; disabled?: boolean; className?: string;
@@ -27,6 +36,32 @@ function Placeholder({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const [settings, setSettings] = useState<KeepsakeSettings>(() => loadSettings());
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [localAssetUrls, setLocalAssetUrls] = useState<Record<string, string>>({});
+  const [localAssetVersion, setLocalAssetVersion] = useState(0);
+  const localAssetKeys = useMemo(() => listLocalAssetKeys(settings).sort(), [settings]);
+  const localAssetSignature = JSON.stringify(localAssetKeys);
+  const personal = settings.personal;
+  const media = settings.media;
+  const surprises = settings.gifts.filter((item) => item.enabled);
+  const bouquetFlowers = settings.bouquetFlowers;
+  const flowerMessages = settings.flowerMessages;
+  const letterNotes = settings.letterNotes;
+  const loveReasons = settings.loveReasons;
+  const alphabetWishes = settings.alphabetWishes;
+  const photoShowerMoments = settings.photoShowerMoments;
+  const songs = settings.songs;
+  const calendarEntries = settings.calendarEntries;
+  const memoryMapStops = settings.memoryMapStops;
+  const reservedDesignAssets = settings.reservedDesignAssets;
+  const characterLoveParts = settings.characterLoveParts;
+  const assetUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('local:')) return localAssetUrls[path.slice('local:'.length)] ?? '';
+    return staticAssetUrl(path);
+  };
   const [stage, setStage] = useState<Stage>('envelope');
   const [openingSequence, setOpeningSequence] = useState<OpeningSequence>(null);
   const [activeGift, setActiveGift] = useState(0);
@@ -53,28 +88,86 @@ function App() {
   const [cakeCut, setCakeCut] = useState(false);
   const soundtrackRef = useRef<HTMLAudioElement>(null);
   const songRef = useRef<HTMLAudioElement>(null);
+  const gift = surprises[activeGift] ?? {
+    id: 'empty-collection', kind: 'custom' as const, art: 'custom', title: 'A little gift',
+    subtitle: '', enabled: false, placeholder: '', message: '', image: '',
+  };
   const greetingPhotoUrl = assetUrl(media.greetingPhoto);
   const recordingUrl = assetUrl(media.birthdayRecording);
   const soundtrackUrl = assetUrl(media.soundtrack);
   const videoUrl = assetUrl(media.birthdayVideo);
   const cardPhotoUrl = assetUrl(media.birthdayCardPhoto);
-  const gift = surprises[activeGift];
-  const currentSong = songs[page % songs.length];
+  const currentSong = songs.length ? songs[page % songs.length] : {
+    title: '[ADD SONG TITLE]', dedication: '[ADD DEDICATION]',
+    lyric: '[ADD SELECTED LYRIC EXCERPT]', spotifyUrl: '', photo: '', audio: '',
+  };
   const currentSongAudio = assetUrl(currentSong?.audio ?? '');
-  const allExplored = explored.length === surprises.length;
+  const exploredCount = surprises.filter((item) => explored.includes(item.id)).length;
+  const allExplored = surprises.every((item) => explored.includes(item.id));
+
+  useEffect(() => {
+    setSaveFailed(!saveSettings(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    void pruneLocalAssets(JSON.parse(localAssetSignature) as string[]).catch(() => undefined);
+  }, [localAssetSignature]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const createdUrls: string[] = [];
+    const keys = JSON.parse(localAssetSignature) as string[];
+    void Promise.all(keys.map(async (key) => [key, await getLocalAsset(key)] as const))
+      .then((entries) => {
+        if (cancelled) return;
+        const loaded: Record<string, string> = {};
+        for (const [key, blob] of entries) {
+          if (blob) {
+            loaded[key] = URL.createObjectURL(blob);
+            createdUrls.push(loaded[key]);
+          }
+        }
+        setLocalAssetUrls((current) => ({ ...current, ...loaded }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [localAssetSignature, localAssetVersion]);
+
+  const storeAsset = async (key: string, file: File) => {
+    await saveLocalAsset(key, file);
+    setLocalAssetVersion((version) => version + 1);
+  };
+
+  const resetLocalEdits = async () => {
+    if (!window.confirm('Reset this browser’s birthday edits and clear its selected media?')) return;
+    try {
+      window.localStorage.removeItem('birthday-journey-personalization-v1');
+    } catch {
+      setSaveFailed(true);
+    }
+    await clearLocalAssets().catch(() => undefined);
+    setLocalAssetUrls((current) => {
+      Object.values(current).forEach((url) => URL.revokeObjectURL(url));
+      return {};
+    });
+    setSettings(loadSettings());
+  };
 
   useEffect(() => {
     if (soundtrackRef.current) soundtrackRef.current.muted = isMuted;
   }, [isMuted, soundtrackUrl]);
 
   useEffect(() => {
-    if (stage !== 'gift' || gift.id !== 'photo-shower' || photoShowerRevealed < photoShowerMoments.length) return;
+    if (stage !== 'gift' || gift.kind !== 'photo-shower' || photoShowerRevealed < photoShowerMoments.length) return;
     const timeout = window.setTimeout(() => {
       setPhotoShowerCurrent(null);
       setPhotoShowerDone(true);
     }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 650);
     return () => window.clearTimeout(timeout);
-  }, [stage, gift.id, photoShowerRevealed]);
+  }, [stage, gift.id, gift.kind, photoShowerRevealed]);
 
   useEffect(() => {
     if (!openingSequence) return;
@@ -88,10 +181,10 @@ function App() {
   }, [openingSequence]);
 
   useEffect(() => {
-    if (stage === 'gift' && gift.id === 'spotify-book') return;
+    if (stage === 'gift' && gift.kind === 'spotify-book') return;
     songRef.current?.pause();
     setSongIsPlaying(false);
-  }, [stage, gift.id]);
+  }, [stage, gift.id, gift.kind]);
 
   const openGift = (index: number) => {
     setActiveGift(index);
@@ -116,7 +209,7 @@ function App() {
   };
 
   const changePage = (next: number, max: number) => {
-    if (gift.id === 'spotify-book') {
+    if (gift.kind === 'spotify-book') {
       songRef.current?.pause();
       setSongIsPlaying(false);
       setSongStatus('');
@@ -163,7 +256,7 @@ function App() {
 
   const toggleSong = async () => {
     if (!currentSongAudio) {
-      setSongStatus('Add this track’s audio path in content.ts.');
+      setSongStatus('Add local audio for this song in Edit keepsake.');
       return;
     }
     const audio = songRef.current;
@@ -194,10 +287,10 @@ function App() {
   };
 
   const renderGift = () => {
-    const image = (path: string, label: string, prompt = 'Add image path in content.ts') =>
+    const image = (path: string, label: string, prompt = 'Add a photo in Edit keepsake') =>
       path ? <img src={assetUrl(path)} alt={label} /> : <Placeholder>{prompt}</Placeholder>;
 
-    if (gift.id === 'bouquet') return <div className="gift-interaction bouquet-scene">
+    if (gift.kind === 'bouquet') return <div className="gift-interaction bouquet-scene">
       <div className="bouquet-arrangement">
         <div className="bouquet-stems" aria-hidden="true" />
         <div className="bouquet-wrap" aria-hidden="true" />
@@ -214,7 +307,7 @@ function App() {
       </div>}
     </div>;
 
-    if (gift.id === 'letters') return <div className="letter-dispenser-scene">
+    if (gift.kind === 'letters') return <div className="letter-dispenser-scene">
       <div className={`letter-dispenser ${dispensedLetter !== null ? 'has-letter' : ''}`}>
         <div className="dispenser-top" /><div className="dispenser-slot" />
         <div className="dispenser-front" />
@@ -232,7 +325,7 @@ function App() {
       </div>}
     </div>;
 
-    if (gift.id === 'jar') return <div className="love-jar-scene">
+    if (gift.kind === 'jar') return <div className="love-jar-scene">
       <button className={`love-jar ${jarOpen ? 'jar-open' : ''}`} type="button" onClick={() => setJarOpen((open) => !open)}
         aria-label={jarOpen ? 'Close the love jar' : 'Open the love jar'} aria-expanded={jarOpen}>
         <span className="jar-lid" /><span className="jar-neck" />
@@ -246,7 +339,7 @@ function App() {
       {selectedNote !== null && jarOpen && <p className="message-reveal scene-enter">{loveReasons[selectedNote]}</p>}
     </div>;
 
-    if (gift.id === 'photo-shower') {
+    if (gift.kind === 'photo-shower') {
       const moment = photoShowerCurrent === null ? null : photoShowerMoments[photoShowerCurrent];
       return <div className="photo-shower">
         {photoShowerDone
@@ -274,12 +367,12 @@ function App() {
       </div>;
     }
 
-    if (gift.id === 'alphabet' || gift.id === 'spotify-book') {
-      const alphabet = gift.id === 'alphabet';
+    if (gift.kind === 'alphabet' || gift.kind === 'spotify-book') {
+      const alphabet = gift.kind === 'alphabet';
       const total = alphabetWishes.length;
       const wish = alphabetWishes[page];
       const song = songs[page % songs.length];
-      return <div className={`turning-book book-${gift.id}`}>
+      return <div className={`turning-book book-${gift.kind}`}>
         <div className="book-page scene-enter">
           {alphabet
             ? <div className="alphabet-page"><span className="giant-letter">{wish.letter}</span><p>{wish.wish}</p></div>
@@ -287,6 +380,8 @@ function App() {
               <div className="songbook-photo">{image(song.photo, 'Song page photograph')}</div>
               <h3>{song.title}</h3><p className="song-dedication">{song.dedication}</p>
               <blockquote>{song.lyric}</blockquote>
+              {spotifyTrackUrl(song.spotifyUrl) && <a className="songbook-link" href={spotifyTrackUrl(song.spotifyUrl)}
+                target="_blank" rel="noopener noreferrer"><ExternalLink size={14} /> Open this track on Spotify</a>}
               <audio ref={songRef} src={currentSongAudio || undefined}
                 onPlay={() => setSongIsPlaying(true)} onPause={() => setSongIsPlaying(false)} onEnded={() => setSongIsPlaying(false)} />
               <ActionButton onClick={toggleSong}><span>{songIsPlaying ? <Pause size={16} /> : <Play size={16} />}</span>{songIsPlaying ? 'Pause' : 'Play this song'}</ActionButton>
@@ -300,7 +395,7 @@ function App() {
       </div>;
     }
 
-    if (gift.id === 'calendar') {
+    if (gift.kind === 'calendar') {
       const shown = new Date(2025, 9 + calendarMonth, 1);
       const monthKey = `${shown.getFullYear()}-${String(shown.getMonth() + 1).padStart(2, '0')}`;
       const days = new Date(shown.getFullYear(), shown.getMonth() + 1, 0).getDate();
@@ -332,7 +427,7 @@ function App() {
       </div>;
     }
 
-    if (gift.id === 'map') {
+    if (gift.kind === 'map') {
       const stop = selectedPin === null ? null : memoryMapStops[selectedPin];
       return <div className="memory-map">
         <div className="map-paper"><span className="map-route route-one" /><span className="map-route route-two" />
@@ -351,7 +446,7 @@ function App() {
       </div>;
     }
 
-    if (gift.id === 'card') return <div className="card-scene">
+    if (gift.kind === 'card') return <div className="card-scene">
       <button type="button" className={`pop-card ${cardOpen ? 'open' : ''}`} onClick={() => setCardOpen((open) => !open)}
         aria-label={cardOpen ? 'Close birthday card' : 'Open birthday card'} aria-expanded={cardOpen}>
         <span className="card-cover">
@@ -362,7 +457,7 @@ function App() {
       </button>
     </div>;
 
-    if (gift.id === 'cake') return <div className={`birthday-cake-scene ${cakeCut ? 'cake-cut' : ''}`}>
+    if (gift.kind === 'cake') return <div className={`birthday-cake-scene ${cakeCut ? 'cake-cut' : ''}`}>
       <div className="birthday-cake" aria-label="Layered birthday cake with eighteen candles">
         <div className="cake-candles">{Array.from({ length: 18 }, (_, index) => <span className="cake-candle" key={index}><i className={candlesBlownOut ? 'flame out' : 'flame'} /></span>)}</div>
         <div className="cake-top"><span className="cake-berry" /><span className="cake-berry" /><span className="cake-berry" /></div>
@@ -375,7 +470,7 @@ function App() {
       </div> : <div className="cake-wish scene-enter"><p>{personal.cakeWish}</p><ActionButton quiet onClick={() => { setCakeCut(false); setCandlesBlownOut(false); }}>Replay</ActionButton></div>}
     </div>;
 
-    if (gift.id === 'character') return <div className="character-stage">
+    if (gift.kind === 'character') return <div className="character-stage">
       <div className={`character-card ${characterPopped ? 'popped' : ''}`} aria-label="A little illustrated character waiting to pop out">
         <svg className="love-character" viewBox="0 0 180 225" role="img" aria-label="A small illustrated character with a flower">
           <path d="M45 93 C31 43 57 16 91 19 C129 20 151 52 135 100 L126 111 L48 108Z" fill="#704251" />
@@ -403,15 +498,19 @@ function App() {
       </ActionButton>
     </div>;
 
-    if (gift.id === 'poem') return <div className="poem-paper"><div className="poem-copy">{personal.poem}</div></div>;
+    if (gift.kind === 'poem') return <div className="poem-paper"><div className="poem-copy">{personal.poem}</div></div>;
 
-    if (gift.id === 'magazine' || gift.id === 'scrapbook' || gift.id === 'poster' || gift.id === 'booth') {
-      const key = gift.id === 'booth' ? 'photoBooth' : gift.id;
+    if (gift.kind === 'magazine' || gift.kind === 'scrapbook' || gift.kind === 'poster' || gift.kind === 'booth') {
+      const key = gift.kind === 'booth' ? 'photoBooth' : gift.kind;
       const artPath = reservedDesignAssets[key as keyof typeof reservedDesignAssets];
-      return <div className={`reserved-design reserved-${gift.id}`}>
+      return <div className={`reserved-design reserved-${gift.kind}`}>
         {image(artPath, 'Personal birthday artwork', 'Your design will appear here')}
       </div>;
     }
+    if (gift.kind === 'custom') return <div className="custom-gift-scene">
+      {gift.image && <div className="custom-gift-photo">{image(gift.image, gift.title)}</div>}
+      <p>{gift.message || gift.placeholder || 'Add a message in Edit keepsake.'}</p>
+    </div>;
     return null;
   };
 
@@ -420,14 +519,33 @@ function App() {
       <div className="paper-grain" aria-hidden="true" />
       <header className="journey-header">
         <button type="button" className="wordmark" onClick={() => { setOpeningSequence(null); setStage('envelope'); }} aria-label="Return to the beginning"><span className="mark">18</span><span>for {personal.herName}</span></button>
-        <div className="journey-progress"><span>{stage === 'envelope' ? 'A birthday journey' : 'A birthday journey'}</span><div><i style={{ width: `${Math.max(8, Math.round((explored.length / surprises.length) * 72))}%` }} /></div></div>
-        <button type="button" className="music-toggle" onClick={toggleSoundtrack} disabled={!soundtrackUrl} aria-label={isPlaying ? 'Pause soundtrack' : 'Play soundtrack'}>
-          {isPlaying ? <Pause size={16} /> : <Music2 size={16} />} <span>{isPlaying ? 'Sound on' : 'Soundtrack'}</span>
-        </button>
+        <div className="journey-progress"><span>A birthday journey</span><div><i style={{ width: `${surprises.length ? Math.max(8, Math.round((exploredCount / surprises.length) * 72)) : 0}%` }} /></div></div>
+        <div className="journey-header-tools">
+          <button type="button" className="music-toggle" onClick={toggleSoundtrack} disabled={!soundtrackUrl} aria-label={isPlaying ? 'Pause soundtrack' : 'Play soundtrack'}>
+            {isPlaying ? <Pause size={16} /> : <Music2 size={16} />} <span>{isPlaying ? 'Sound on' : 'Soundtrack'}</span>
+          </button>
+          <button type="button" className="editor-toggle" onClick={() => {
+            if (!editorOpen) {
+              soundtrackRef.current?.pause();
+              songRef.current?.pause();
+              setIsPlaying(false);
+              setSongIsPlaying(false);
+            }
+            setEditorOpen((open) => !open);
+          }}>
+            {editorOpen ? <X size={15} /> : <Pencil size={14} />}
+            <span>{editorOpen ? 'Back to journey' : 'Edit keepsake'}</span>
+          </button>
+        </div>
       </header>
       {soundtrackUrl && <audio ref={soundtrackRef} src={soundtrackUrl} loop muted={isMuted} onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />}
 
-      <section className={`journey-content stage-${stage}`} aria-live="polite">
+      {editorOpen
+        ? <div className="journey-content stage-editor">
+          <LocalEditor settings={settings} onChange={setSettings} assetUrl={assetUrl} storeAsset={storeAsset}
+            onPreview={() => setEditorOpen(false)} onReset={resetLocalEdits} saveFailed={saveFailed} />
+        </div>
+        : <section className={`journey-content stage-${stage}`} aria-live="polite">
         {stage === 'envelope' && <div className={`opening-scene scene-enter ${openingSequence === 'envelope' ? 'is-opening' : ''}`}>
           <div className="kicker"><span /> A LETTER FOR YOUR 18TH <span /></div>
           <h1>Something made<br /><em>just for you.</em></h1>
@@ -441,13 +559,13 @@ function App() {
 
         {stage === 'greeting' && <div className="greeting-scene scene-enter">
           <div className="photo-window">
-            {greetingPhotoUrl ? <img src={greetingPhotoUrl} alt="Birthday greeting photo" /> : <Placeholder>Add photo path in content.ts</Placeholder>}
+            {greetingPhotoUrl ? <img src={greetingPhotoUrl} alt="Birthday greeting photo" /> : <Placeholder>Add a photo in Edit keepsake</Placeholder>}
             <span className="photo-note">ONE OF MY FAVORITES</span>
           </div>
           <div className="greeting-copy"><span className="eyebrow">TODAY IS ALL YOURS</span><h1>{personal.greeting}</h1>
             <p>{personal.herName}, I hope this feels a little like being wrapped up in a hug.</p>
             <div className="recording-box"><div className="recording-copy"><AudioLines size={18} /><span><b>A voice note, if you want one</b><small>{personal.birthdayRecordingLabel}</small></span></div>
-              {recordingUrl ? <audio controls src={recordingUrl} aria-label="Birthday recording" /> : <small>Add recording path in content.ts</small>}
+              {recordingUrl ? <audio controls src={recordingUrl} aria-label="Birthday recording" /> : <small>Add a recording in Edit keepsake</small>}
             </div>
             <ActionButton onClick={() => setStage('note')}>Keep going <ArrowRight size={17} /></ActionButton>
           </div>
@@ -476,21 +594,31 @@ function App() {
         {stage === 'collection' && <div className="collection-scene scene-enter">
           <div className="collection-heading"><div><span className="eyebrow">A COLLECTION MADE FOR {personal.herName.toUpperCase()}</span>
             <h1>Your birthday<br /><em>surprises.</em></h1></div><p>{personal.collectionIntro}</p></div>
-          <div className="collection-meta"><span>{explored.length} explored</span><span className="meta-line" /><span>open in any order</span></div>
-          <div className="surprise-grid">{surprises.map((item, index) => {
-            const visited = explored.includes(item.id);
-            return <button type="button" key={item.id} onClick={() => openGift(index)} aria-label="Open a birthday surprise"
-              data-testid={`surprise-${item.id}`} className={`surprise-card card-art-${index % 6} ${visited ? 'visited' : ''}`}>
-              <span className={`gift-art art-${item.art}`} aria-hidden="true"><span className="art-lines" /></span>
-            </button>;
-          })}</div>
-          <div className="collection-footer"><span>{allExplored ? 'Every little surprise has been opened.' : `${surprises.length - explored.length} surprises still waiting`}</span>
-            <ActionButton onClick={() => setGiftStage('video')} disabled={!allExplored}>{allExplored ? 'Go to your birthday video' : 'Open every surprise to continue'} <ArrowRight size={17} /></ActionButton>
+          <div className="collection-meta"><span>{exploredCount} explored</span><span className="meta-line" /><span>open in any order</span></div>
+          {surprises.length === 0
+            ? <div className="empty-surprise-collection"><p>Your gift collection is empty. Add a keepsake to begin.</p>
+              <button type="button" className="editor-preview-button" onClick={() => setEditorOpen(true)}>Add a gift</button></div>
+            : <div className="surprise-grid">{surprises.map((item, index) => {
+              const visited = explored.includes(item.id);
+              return <button type="button" key={item.id} onClick={() => openGift(index)} aria-label={`Open ${item.title}`}
+                data-testid={`surprise-${item.id}`} className={`surprise-card card-art-${index % 6} ${visited ? 'visited' : ''}`}>
+                <span className={`gift-art art-${item.art}`} aria-hidden="true"><span className="art-lines" /></span>
+                <span className="surprise-info"><b>{item.title}</b><span>{item.subtitle}</span>
+                  {visited && <small className="visited-label">Opened</small>}</span>
+              </button>;
+            })}</div>}
+          <div className="collection-footer"><span>{surprises.length === 0 ? 'Your box is ready for a gift.' : allExplored ? 'Every little surprise has been opened.' : `${surprises.length - exploredCount} surprises still waiting`}</span>
+            <ActionButton onClick={() => setGiftStage('video')} disabled={surprises.length === 0 || !allExplored}>{allExplored && surprises.length > 0 ? 'Go to your birthday video' : 'Open every surprise to continue'} <ArrowRight size={17} /></ActionButton>
           </div>
         </div>}
 
         {stage === 'gift' && <div className="gift-detail scene-enter">
           <button type="button" className="back-link" onClick={() => setStage('collection')}><ArrowLeft size={16} /> Back to all surprises</button>
+          <div className="gift-detail-head">
+            <span className="eyebrow">A LITTLE GIFT FOR {personal.herName.toUpperCase()}</span>
+            <h1>{gift.title || 'A little gift'}</h1>
+            {gift.subtitle && <p>{gift.subtitle}</p>}
+          </div>
           <div className="gift-detail-body">{renderGift()}</div>
           <div className="gift-detail-footer"><button type="button" className="text-button" onClick={() => setStage('collection')}>Return to collection <ArrowRight size={15} /></button></div>
         </div>}
@@ -501,7 +629,7 @@ function App() {
             <video controls playsInline src={videoUrl || undefined} onPlay={onBirthdayVideoPlay} aria-label="Birthday video">
               <track kind="captions" />
             </video>
-            {!videoUrl && <div className="video-empty"><CirclePlay size={35} /><span>Add video path in content.ts</span></div>}
+            {!videoUrl && <div className="video-empty"><CirclePlay size={35} /><span>Add a video in Edit keepsake</span></div>}
           </div>
           <p className="video-caption">{personal.videoCaption}</p>
           <div className="video-continue"><span>Soundtrack pauses while your video plays.</span><ActionButton onClick={() => setGiftStage('final-envelope')}>Continue to your final gift <ArrowRight size={17} /></ActionButton></div>
@@ -522,7 +650,7 @@ function App() {
           <article className="final-letter"><p className="letter-dear">My dear {personal.herName},</p><p>{personal.finalLetter}</p><p className="letter-signoff">{personal.signOff}<br /><span>{personal.fromName}</span></p></article>
           <button type="button" className="restart-link" onClick={() => { setOpeningSequence(null); setExplored([]); setStage('envelope'); }}>Begin the journey again <RotateCcw size={14} /></button>
         </div>}
-      </section>
+      </section>}
 
       {soundtrackUrl && <div className="soundtrack-dock" aria-label="Soundtrack controls">
         <div className="dock-label"><Music2 size={16} /><span>Soundtrack</span></div>
@@ -530,7 +658,9 @@ function App() {
           <button type="button" onClick={() => setIsMuted((muted) => !muted)} aria-label={isMuted ? 'Unmute soundtrack' : 'Mute soundtrack'}>{isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
           <button type="button" onClick={replaySoundtrack} aria-label="Replay soundtrack"><RotateCcw size={15} /></button></div>
       </div>}
-      {!soundtrackUrl && <div className="soundtrack-setup"><Music2 size={15} /><span>Add soundtrack path in content.ts</span></div>}
+      {!soundtrackUrl && !editorOpen && <button type="button" className="soundtrack-setup editor-shortcut" onClick={() => setEditorOpen(true)}>
+        <Music2 size={15} /><span>Add soundtrack in Edit keepsake</span><Pencil size={13} />
+      </button>}
       <footer className="journey-footer"><span>A small birthday world, made by {personal.fromName}</span><span>FOR {personal.herName.toUpperCase()} · WITH LOVE</span></footer>
     </main>
   );
